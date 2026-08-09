@@ -138,10 +138,7 @@ func TestResolveDifficulty(t *testing.T) {
 
 func TestParseAvailableDiffs(t *testing.T) {
 	version := MapVersion{
-		Diffs: []struct {
-			Characteristic string `json:"characteristic"`
-			Difficulty     string `json:"difficulty"`
-		}{
+		Diffs: []MapDiff{
 			{Characteristic: "Standard", Difficulty: "Hard"},
 			{Characteristic: "Standard", Difficulty: "Expert"},
 			{Characteristic: "Standard", Difficulty: "Hard"},         // Duplicate, should be ignored
