@@ -144,7 +144,7 @@ func TestParseAvailableDiffs(t *testing.T) {
 		}{
 			{Characteristic: "Standard", Difficulty: "Hard"},
 			{Characteristic: "Standard", Difficulty: "Expert"},
-			{Characteristic: "Standard", Difficulty: "Hard"}, // Duplicate, should be ignored
+			{Characteristic: "Standard", Difficulty: "Hard"},         // Duplicate, should be ignored
 			{Characteristic: "Lightshow", Difficulty: "UnknownDiff"}, // Unmapped diff, should be ignored
 		},
 	}

@@ -259,7 +259,6 @@ type beatLeaderLeaderboardResponse struct {
 	} `json:"Song"`
 }
 
-
 func getBeatLeaderLeaderboardHash(leaderboardID string) (string, error) {
 	apiURL := fmt.Sprintf("https://api.beatleader.com/leaderboard/%s", url.PathEscape(leaderboardID))
 
