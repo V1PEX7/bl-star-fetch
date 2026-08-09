@@ -30,7 +30,7 @@ This tool makes HTTP requests to:
 
 Download a pre-compiled binary from the [Releases](https://github.com/V1PEX7/bl-star-fetch/releases) page.
 
-Or build from source (requires Go 1.22+):
+Or build from source (requires Go 1.26+):
 
 ```bash
 git clone https://github.com/V1PEX7/bl-star-fetch.git

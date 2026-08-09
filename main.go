@@ -11,7 +11,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"text/tabwriter"
@@ -33,8 +33,8 @@ var (
 		"easy": "Easy", "es": "Easy",
 	}
 
-	useColorStdout = true
-	useColorStderr = true
+	useColorStdout bool
+	useColorStderr bool
 )
 
 const (
@@ -45,40 +45,40 @@ const (
 	colorYellow = "\033[33m"
 )
 
-type BeatSaverMap struct {
+type beatSaverMap struct {
 	ID       string `json:"id"`
 	Name     string `json:"name"`
 	Metadata struct {
 		SongAuthorName  string `json:"songAuthorName"`
 		LevelAuthorName string `json:"levelAuthorName"`
 	} `json:"metadata"`
-	Versions []MapVersion `json:"versions"`
+	Versions []mapVersion `json:"versions"`
 }
 
-type MapDiff struct {
+type mapDiff struct {
 	Characteristic string `json:"characteristic"`
 	Difficulty     string `json:"difficulty"`
 }
 
-type MapVersion struct {
+type mapVersion struct {
 	Hash        string    `json:"hash"`
 	DownloadURL string    `json:"downloadURL"`
-	Diffs       []MapDiff `json:"diffs"`
+	Diffs       []mapDiff `json:"diffs"`
 }
 
-type ModifierData struct {
+type modifierData struct {
 	StarRating         *float64         `json:"star_rating"`
 	AccRating          *float64         `json:"acc_rating"`
-	LackMapCalculation *LackCalculation `json:"lack_map_calculation"`
+	LackMapCalculation *lackCalculation `json:"lack_map_calculation"`
 	PredictedAcc       *float64         `json:"predicted_acc"`
 }
 
-type LackCalculation struct {
+type lackCalculation struct {
 	BalancedPassDiff *float64 `json:"balanced_pass_diff"`
 	BalancedTech     *float64 `json:"balanced_tech"`
 }
 
-type MapDifficulty struct {
+type mapDifficulty struct {
 	Characteristic string
 	Difficulty     string
 	Value          int
@@ -147,40 +147,17 @@ func main() {
 		rawInput = flag.Arg(0)
 	}
 	if rawInput == "" {
-		rawInput = readLine("Enter BeatSaver code, !bsr code, or BeatSaver/BeatLeader/ScoreSaber link: ")
+		line, ok := readLine("Enter BeatSaver code, !bsr code, or BeatSaver/BeatLeader/ScoreSaber link: ")
+		if !ok {
+			fmt.Fprintln(os.Stderr)
+			os.Exit(0)
+		}
+		rawInput = line
 	}
 
-	kind, value := extractMapCode(rawInput)
-
-	var mapInfo *BeatSaverMap
-	var err error
-
-	switch kind {
-	case kindLeaderboardID:
-		fmt.Fprintln(os.Stderr, cErr(colorDim, "Resolving BeatLeader leaderboard..."))
-		hash, resolveErr := getBeatLeaderLeaderboardHash(value)
-		if resolveErr != nil {
-			fatalError("Failed to resolve BeatLeader leaderboard: %v", resolveErr)
-		}
-		fmt.Fprintln(os.Stderr, cErr(colorDim, "Fetching map details..."))
-		mapInfo, err = getBeatSaverMapByHash(hash)
-	case kindScoreSaberID:
-		fmt.Fprintln(os.Stderr, cErr(colorDim, "Resolving ScoreSaber map..."))
-		hash, resolveErr := getScoreSaberHash(value)
-		if resolveErr != nil {
-			fatalError("Failed to resolve ScoreSaber map: %v", resolveErr)
-		}
-		fmt.Fprintln(os.Stderr, cErr(colorDim, "Fetching map details..."))
-		mapInfo, err = getBeatSaverMapByHash(hash)
-	case kindHash:
-		fmt.Fprintln(os.Stderr, cErr(colorDim, "Fetching map details..."))
-		mapInfo, err = getBeatSaverMapByHash(value)
-	default:
-		fmt.Fprintln(os.Stderr, cErr(colorDim, "Fetching map details..."))
-		mapInfo, err = getBeatSaverMap(value)
-	}
+	mapInfo, err := fetchMap(extractMapCode(rawInput))
 	if err != nil {
-		fatalError("Failed to query BeatSaver: %v", err)
+		fatalError("%v", err)
 	}
 
 	if len(mapInfo.Versions) == 0 || mapInfo.Versions[0].DownloadURL == "" {
@@ -205,6 +182,34 @@ func main() {
 	}
 
 	printResults(mapInfo, latestVersion.Hash, selectedDiff, blData)
+}
+
+func fetchMap(kind inputKind, value string) (*beatSaverMap, error) {
+	lookup := value
+
+	switch kind {
+	case kindLeaderboardID:
+		fmt.Fprintln(os.Stderr, cErr(colorDim, "Resolving BeatLeader leaderboard..."))
+		hash, err := getBeatLeaderLeaderboardHash(value)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve BeatLeader leaderboard: %w", err)
+		}
+		kind, lookup = kindHash, hash
+	case kindScoreSaberID:
+		fmt.Fprintln(os.Stderr, cErr(colorDim, "Resolving ScoreSaber map..."))
+		hash, err := getScoreSaberHash(value)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve ScoreSaber map: %w", err)
+		}
+		kind, lookup = kindHash, hash
+	}
+
+	fmt.Fprintln(os.Stderr, cErr(colorDim, "Fetching map details..."))
+	m, err := getBeatSaverMap(kind, lookup)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query BeatSaver: %w", err)
+	}
+	return m, nil
 }
 
 func extractMapCode(input string) (kind inputKind, value string) {
@@ -266,8 +271,8 @@ func fetchJSON[T any](apiURL, notFoundMsg string) (T, error) {
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode == http.StatusNotFound && notFoundMsg != "" {
-		return zero, fmt.Errorf("%s", notFoundMsg)
+	if resp.StatusCode == http.StatusNotFound {
+		return zero, errors.New(notFoundMsg)
 	}
 	if resp.StatusCode != http.StatusOK {
 		return zero, fmt.Errorf("HTTP %d", resp.StatusCode)
@@ -280,18 +285,14 @@ func fetchJSON[T any](apiURL, notFoundMsg string) (T, error) {
 	return data, nil
 }
 
-func getBeatSaverMap(mapCode string) (*BeatSaverMap, error) {
-	apiURL := fmt.Sprintf("https://api.beatsaver.com/maps/id/%s", url.PathEscape(mapCode))
-	m, err := fetchJSON[BeatSaverMap](apiURL, fmt.Sprintf("'%s' not found", mapCode))
-	if err != nil {
-		return nil, err
+func getBeatSaverMap(kind inputKind, value string) (*beatSaverMap, error) {
+	route, lookup := "id", value
+	if kind == kindHash {
+		route, lookup = "hash", strings.ToLower(value)
 	}
-	return &m, nil
-}
 
-func getBeatSaverMapByHash(hash string) (*BeatSaverMap, error) {
-	apiURL := fmt.Sprintf("https://api.beatsaver.com/maps/hash/%s", url.PathEscape(strings.ToLower(hash)))
-	m, err := fetchJSON[BeatSaverMap](apiURL, fmt.Sprintf("'%s' not found", hash))
+	apiURL := fmt.Sprintf("https://api.beatsaver.com/maps/%s/%s", route, url.PathEscape(lookup))
+	m, err := fetchJSON[beatSaverMap](apiURL, fmt.Sprintf("'%s' not found", value))
 	if err != nil {
 		return nil, err
 	}
@@ -304,11 +305,11 @@ type beatLeaderLeaderboardResponse struct {
 	} `json:"Song"`
 }
 
-func (r beatLeaderLeaderboardResponse) hash() string {
-	if looksLikeHash(r.Song.Hash) {
-		return r.Song.Hash
+func validateHash(hash, source string) (string, error) {
+	if !looksLikeHash(hash) {
+		return "", fmt.Errorf("no map hash found in %s response", source)
 	}
-	return ""
+	return hash, nil
 }
 
 func getBeatLeaderLeaderboardHash(leaderboardID string) (string, error) {
@@ -318,22 +319,11 @@ func getBeatLeaderLeaderboardHash(leaderboardID string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	hash := resp.hash()
-	if hash == "" {
-		return "", errors.New("no map hash found in leaderboard response")
-	}
-	return hash, nil
+	return validateHash(resp.Song.Hash, "BeatLeader")
 }
 
 type scoreSaberMapResponse struct {
 	Hash string `json:"hash"`
-}
-
-func (r scoreSaberMapResponse) hash() string {
-	if looksLikeHash(r.Hash) {
-		return r.Hash
-	}
-	return ""
 }
 
 func getScoreSaberHash(id string) (string, error) {
@@ -343,14 +333,10 @@ func getScoreSaberHash(id string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	hash := resp.hash()
-	if hash == "" {
-		return "", errors.New("no map hash found in ScoreSaber response")
-	}
-	return hash, nil
+	return validateHash(resp.Hash, "ScoreSaber")
 }
 
-func getBeatLeaderStars(characteristic string, diffVal int, zipURL string) (map[string]ModifierData, error) {
+func getBeatLeaderStars(characteristic string, diffVal int, zipURL string) (map[string]modifierData, error) {
 	apiURL := fmt.Sprintf("https://stage.api.beatleader.net/ppai2/link/%s/%d", url.PathEscape(characteristic), diffVal)
 
 	reqURL, err := url.Parse(apiURL)
@@ -361,17 +347,18 @@ func getBeatLeaderStars(characteristic string, diffVal int, zipURL string) (map[
 	q.Set("link", zipURL)
 	reqURL.RawQuery = q.Encode()
 
-	return fetchJSON[map[string]ModifierData](reqURL.String(), "")
+	notFound := fmt.Sprintf("no calculation available for %s difficulty %d", characteristic, diffVal)
+	return fetchJSON[map[string]modifierData](reqURL.String(), notFound)
 }
 
-func resolveDifficulty(available []MapDifficulty, argDiff string) (*MapDifficulty, error) {
+func resolveDifficulty(available []mapDifficulty, argDiff string) (*mapDifficulty, error) {
 	if argDiff != "" {
 		targetDiff := diffShorthands[strings.ToLower(strings.TrimSpace(argDiff))]
 		if targetDiff == "" {
 			return nil, fmt.Errorf("unknown difficulty shorthand: '%s'", argDiff)
 		}
 
-		var matched []MapDifficulty
+		var matched []mapDifficulty
 		for _, d := range available {
 			if d.Difficulty == targetDiff {
 				matched = append(matched, d)
@@ -404,7 +391,10 @@ func resolveDifficulty(available []MapDifficulty, argDiff string) (*MapDifficult
 	}
 
 	promptMsg := fmt.Sprintf("\nSelect difficulty index (1-%d) [default %d]: ", len(available), defaultIdx)
-	selection := readLine(cErr(colorBold, promptMsg))
+	selection, ok := readLine(cErr(colorBold, promptMsg))
+	if !ok {
+		fmt.Fprintln(os.Stderr)
+	}
 
 	selectedIdx := defaultIdx
 	if selection != "" {
@@ -419,7 +409,7 @@ func resolveDifficulty(available []MapDifficulty, argDiff string) (*MapDifficult
 	return &available[selectedIdx-1], nil
 }
 
-func printResults(m *BeatSaverMap, hash string, diff *MapDifficulty, blData map[string]ModifierData) {
+func printResults(m *beatSaverMap, hash string, diff *mapDifficulty, blData map[string]modifierData) {
 	if hash == "" {
 		hash = "N/A"
 	}
@@ -438,22 +428,20 @@ func printResults(m *BeatSaverMap, hash string, diff *MapDifficulty, blData map[
 	wTable := tabwriter.NewWriter(os.Stdout, 0, 0, 4, ' ', 0)
 	_, _ = fmt.Fprintln(wTable, "MODIFIER\tSTARS\tACC\tPASS\tTECH\tPRED. ACC")
 
-	printed := make(map[string]bool, len(blData))
 	knownOrder := []string{"none", "SFS", "FS", "SS"}
 	for _, mod := range knownOrder {
 		if data, exists := blData[mod]; exists {
 			printRow(wTable, mod, data)
-			printed[mod] = true
 		}
 	}
 
 	remaining := make([]string, 0, len(blData))
 	for mod := range blData {
-		if !printed[mod] {
+		if !slices.Contains(knownOrder, mod) {
 			remaining = append(remaining, mod)
 		}
 	}
-	sort.Strings(remaining)
+	slices.Sort(remaining)
 	for _, mod := range remaining {
 		printRow(wTable, mod, blData[mod])
 	}
@@ -462,7 +450,7 @@ func printResults(m *BeatSaverMap, hash string, diff *MapDifficulty, blData map[
 	fmt.Println()
 }
 
-func printRow(w *tabwriter.Writer, mod string, data ModifierData) {
+func printRow(w *tabwriter.Writer, mod string, data modifierData) {
 	displayName := strings.ToUpper(mod)
 	var passVal, techVal *float64
 
@@ -487,8 +475,8 @@ func printRow(w *tabwriter.Writer, mod string, data ModifierData) {
 	)
 }
 
-func parseAvailableDiffs(version MapVersion) []MapDifficulty {
-	var diffs []MapDifficulty
+func parseAvailableDiffs(version mapVersion) []mapDifficulty {
+	var diffs []mapDifficulty
 	seen := make(map[string]bool)
 
 	for _, d := range version.Diffs {
@@ -502,7 +490,7 @@ func parseAvailableDiffs(version MapVersion) []MapDifficulty {
 			if !exists {
 				continue
 			}
-			diffs = append(diffs, MapDifficulty{
+			diffs = append(diffs, mapDifficulty{
 				Characteristic: d.Characteristic,
 				Difficulty:     d.Difficulty,
 				Value:          val,
@@ -513,7 +501,7 @@ func parseAvailableDiffs(version MapVersion) []MapDifficulty {
 	return diffs
 }
 
-func readLine(prompt string) string {
+func readLine(prompt string) (line string, ok bool) {
 	fd := int(os.Stdin.Fd())
 	if !term.IsTerminal(fd) {
 		return fallbackReadLine(prompt)
@@ -530,31 +518,35 @@ func readLine(prompt string) string {
 		io.Writer
 	}{os.Stdin, os.Stderr}
 
-	line, err := term.NewTerminal(rw, prompt).ReadLine()
+	line, err = term.NewTerminal(rw, prompt).ReadLine()
 	if err != nil {
 		_ = term.Restore(fd, oldState)
 		if errors.Is(err, io.EOF) {
-			fmt.Println()
-			os.Exit(0)
+			return "", false
 		}
 		fatalError("Failed to read input: %v", err)
 	}
-	return strings.TrimSpace(line)
+	return strings.TrimSpace(line), true
 }
 
-func fallbackReadLine(prompt string) string {
+var stdinReader *bufio.Reader
+
+func fallbackReadLine(prompt string) (string, bool) {
 	_, _ = fmt.Fprint(os.Stderr, prompt)
 
-	reader := bufio.NewReader(os.Stdin)
-	input, err := reader.ReadString('\n')
-	if err != nil {
-		if errors.Is(err, io.EOF) {
-			fmt.Println()
-			os.Exit(0)
-		}
-		fatalError("Failed to read input: %v", err)
+	if stdinReader == nil {
+		stdinReader = bufio.NewReader(os.Stdin)
 	}
-	return strings.TrimSpace(input)
+	input, err := stdinReader.ReadString('\n')
+	if err != nil {
+		if !errors.Is(err, io.EOF) {
+			fatalError("Failed to read input: %v", err)
+		}
+		if input == "" {
+			return "", false
+		}
+	}
+	return strings.TrimSpace(input), true
 }
 
 func fmtFloat(val *float64, decimals int, suffix string) string {

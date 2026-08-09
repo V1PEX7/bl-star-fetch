@@ -1,6 +1,6 @@
-module bl_star_fetch
+module bl-star-fetch
 
-go 1.26.4
+go 1.26
 
 require golang.org/x/term v0.45.0
 

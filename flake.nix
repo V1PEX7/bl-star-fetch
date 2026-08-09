@@ -20,7 +20,7 @@
     {
       packages = forAllSystems (pkgs: {
         default = pkgs.buildGoModule {
-          pname = "bl_star_fetch";
+          pname = "bl-star-fetch";
           version = "0.1.0";
           src = ./.;
 
