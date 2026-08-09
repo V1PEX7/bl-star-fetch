@@ -185,7 +185,7 @@ func main() {
 }
 
 func fetchMap(kind inputKind, value string) (*beatSaverMap, error) {
-	route, lookup := "id", value
+	lookup := value
 
 	switch kind {
 	case kindLeaderboardID:
@@ -194,20 +194,18 @@ func fetchMap(kind inputKind, value string) (*beatSaverMap, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to resolve BeatLeader leaderboard: %w", err)
 		}
-		route, lookup = "hash", hash
+		kind, lookup = kindHash, hash
 	case kindScoreSaberID:
 		fmt.Fprintln(os.Stderr, cErr(colorDim, "Resolving ScoreSaber map..."))
 		hash, err := getScoreSaberHash(value)
 		if err != nil {
 			return nil, fmt.Errorf("failed to resolve ScoreSaber map: %w", err)
 		}
-		route, lookup = "hash", hash
-	case kindHash:
-		route = "hash"
+		kind, lookup = kindHash, hash
 	}
 
 	fmt.Fprintln(os.Stderr, cErr(colorDim, "Fetching map details..."))
-	m, err := getBeatSaverMap(route, lookup)
+	m, err := getBeatSaverMap(kind, lookup)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query BeatSaver: %w", err)
 	}
@@ -287,10 +285,10 @@ func fetchJSON[T any](apiURL, notFoundMsg string) (T, error) {
 	return data, nil
 }
 
-func getBeatSaverMap(route, value string) (*beatSaverMap, error) {
-	lookup := value
-	if route == "hash" {
-		lookup = strings.ToLower(value)
+func getBeatSaverMap(kind inputKind, value string) (*beatSaverMap, error) {
+	route, lookup := "id", value
+	if kind == kindHash {
+		route, lookup = "hash", strings.ToLower(value)
 	}
 
 	apiURL := fmt.Sprintf("https://api.beatsaver.com/maps/%s/%s", route, url.PathEscape(lookup))

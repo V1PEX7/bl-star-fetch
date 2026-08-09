@@ -300,13 +300,13 @@ func TestValidateHash(t *testing.T) {
 func TestGetBeatSaverMap(t *testing.T) {
 	tests := []struct {
 		name     string
-		route    string
+		kind     inputKind
 		value    string
 		wantPath string
 	}{
-		{"ID route", "id", "52eb5", "/maps/id/52eb5"},
-		{"Hash route", "hash", testHash, "/maps/hash/" + testHash},
-		{"Hash route lowercases", "hash", strings.ToUpper(testHash), "/maps/hash/" + testHash},
+		{"ID route", kindMapCode, "52eb5", "/maps/id/52eb5"},
+		{"Hash route", kindHash, testHash, "/maps/hash/" + testHash},
+		{"Hash route lowercases", kindHash, strings.ToUpper(testHash), "/maps/hash/" + testHash},
 	}
 
 	for _, tt := range tests {
@@ -317,7 +317,7 @@ func TestGetBeatSaverMap(t *testing.T) {
 				_, _ = io.WriteString(w, `{"id":"52eb5","name":"Song"}`)
 			})
 
-			m, err := getBeatSaverMap(tt.route, tt.value)
+			m, err := getBeatSaverMap(tt.kind, tt.value)
 			if err != nil {
 				t.Fatalf("getBeatSaverMap() unexpected error: %v", err)
 			}
@@ -335,7 +335,7 @@ func TestGetBeatSaverMap(t *testing.T) {
 			w.WriteHeader(http.StatusNotFound)
 		})
 
-		_, err := getBeatSaverMap("id", "nope")
+		_, err := getBeatSaverMap(kindMapCode, "nope")
 		if err == nil {
 			t.Fatal("getBeatSaverMap() expected error for missing map, got nil")
 		}
