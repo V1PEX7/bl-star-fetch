@@ -29,14 +29,14 @@ This tool does not calculate star ratings locally. It makes HTTP requests to:
 
 ## Installation
 
-Download a pre-compiled binary from the [Releases](https://github.com/V1PEX7/bl-starfetch/releases) page.
+Download a pre-compiled binary from the [Releases](https://github.com/V1PEX7/bl-star-fetch/releases) page.
 
 Or build from source (requires Go 1.22+):
 
 ```bash
-git clone https://github.com/V1PEX7/bl-starfetch.git
+git clone https://github.com/V1PEX7/bl-star-fetch.git
 cd bl-starfetch
-go build -o bl-starfetch .
+go build -o bl-star-fetch .
 ```
 
 ## Usage
@@ -44,15 +44,15 @@ go build -o bl-starfetch .
 Pass a map ID, link, hash, or `!bsr` command:
 
 ```bash
-./bl-starfetch 49124
-./bl-starfetch "!bsr 49124"
-./bl-starfetch https://beatleader.com/leaderboard/global/123456/1
+./bl-star-fetch 49124
+./bl-star-fetch "!bsr 49124"
+./bl-star-fetch https://beatleader.com/leaderboard/global/123456/1
 ```
 
 Specify a difficulty shorthand to skip the prompt:
 
 ```bash
-./bl-starfetch -id 49124 -diff e+
+./bl-star-fetch -id 49124 -diff e+
 ```
 
 ## Example Output
