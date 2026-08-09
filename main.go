@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"text/tabwriter"
@@ -31,7 +32,8 @@ var (
 		"easy": "Easy", "es": "Easy",
 	}
 
-	useColor = true
+	useColorStdout = true
+	useColorStderr = true
 )
 
 const (
@@ -93,34 +95,34 @@ var httpClient = &http.Client{
 }
 
 func init() {
-	if os.Getenv("NO_COLOR") != "" || !term.IsTerminal(int(os.Stdout.Fd())) {
-		useColor = false
-	}
+	noColor := os.Getenv("NO_COLOR") != ""
+	useColorStdout = !noColor && term.IsTerminal(int(os.Stdout.Fd()))
+	useColorStderr = !noColor && term.IsTerminal(int(os.Stderr.Fd()))
 	flag.Usage = printUsage
 }
 
 func printUsage() {
 	binName := filepath.Base(os.Args[0])
 
-	fmt.Fprintf(os.Stderr, "%s\n", c(colorBold, "BeatLeader Calculation Tool"))
+	fmt.Fprintf(os.Stderr, "%s\n", cErr(colorBold, "BeatLeader Calculation Tool"))
 	fmt.Fprintf(os.Stderr, "Fetches star ratings, accuracy ratings, and modifier calculations for Beat Saber maps.\n\n")
-	fmt.Fprintf(os.Stderr, "%s\n", c(colorBold, "USAGE:"))
+	fmt.Fprintf(os.Stderr, "%s\n", cErr(colorBold, "USAGE:"))
 	fmt.Fprintf(os.Stderr, "  %s [flags] [map ID or URL]\n\n", binName)
-	fmt.Fprintf(os.Stderr, "%s\n", c(colorBold, "FLAGS:"))
+	fmt.Fprintf(os.Stderr, "%s\n", cErr(colorBold, "FLAGS:"))
 	flag.PrintDefaults()
-	fmt.Fprintf(os.Stderr, "\n%s\n", c(colorBold, "SUPPORTED INPUTS:"))
+	fmt.Fprintf(os.Stderr, "\n%s\n", cErr(colorBold, "SUPPORTED INPUTS:"))
 	fmt.Fprintln(os.Stderr, "  • BeatSaver ID     (e.g. 52eb5 or !bsr 52eb5)")
 	fmt.Fprintln(os.Stderr, "  • BeatSaver URL    (e.g. https://beatsaver.com/maps/52eb5)")
 	fmt.Fprintln(os.Stderr, "  • BeatLeader URL   (e.g. https://beatleader.com/leaderboard/global/12345)")
 	fmt.Fprintln(os.Stderr, "  • ScoreSaber URL   (e.g. https://scoresaber.com/map/12345)")
 	fmt.Fprintln(os.Stderr, "  • 40-character Map Hash")
-	fmt.Fprintf(os.Stderr, "\n%s\n", c(colorBold, "DIFFICULTY SHORTHANDS (-d, -diff):"))
+	fmt.Fprintf(os.Stderr, "\n%s\n", cErr(colorBold, "DIFFICULTY SHORTHANDS (-d, -diff):"))
 	fmt.Fprintln(os.Stderr, "  • ExpertPlus : e+, ex+, expertplus")
 	fmt.Fprintln(os.Stderr, "  • Expert     : e, expert")
 	fmt.Fprintln(os.Stderr, "  • Hard       : h, hard")
 	fmt.Fprintln(os.Stderr, "  • Normal     : n, normal")
 	fmt.Fprintln(os.Stderr, "  • Easy       : es, easy")
-	fmt.Fprintf(os.Stderr, "\n%s\n", c(colorBold, "EXAMPLES:"))
+	fmt.Fprintf(os.Stderr, "\n%s\n", cErr(colorBold, "EXAMPLES:"))
 	fmt.Fprintf(os.Stderr, "  %s -i 52eb5 -d e+\n", binName)
 	fmt.Fprintf(os.Stderr, "  %s -id 52eb5 -diff expert\n", binName)
 	fmt.Fprintf(os.Stderr, "  %s 52eb5\n", binName)
@@ -151,14 +153,14 @@ func main() {
 
 	switch kind {
 	case kindLeaderboardID:
-		fmt.Fprintln(os.Stderr, c(colorDim, "Resolving BeatLeader leaderboard..."))
+		fmt.Fprintln(os.Stderr, cErr(colorDim, "Resolving BeatLeader leaderboard..."))
 		hash, resolveErr := getBeatLeaderLeaderboardHash(value)
 		if resolveErr != nil {
 			fatalError("Failed to resolve BeatLeader leaderboard: %v", resolveErr)
 		}
 		mapInfo, err = getBeatSaverMapByHash(hash)
 	case kindScoreSaberID:
-		fmt.Fprintln(os.Stderr, c(colorDim, "Resolving ScoreSaber map..."))
+		fmt.Fprintln(os.Stderr, cErr(colorDim, "Resolving ScoreSaber map..."))
 		hash, resolveErr := getScoreSaberHash(value)
 		if resolveErr != nil {
 			fatalError("Failed to resolve ScoreSaber map: %v", resolveErr)
@@ -188,7 +190,7 @@ func main() {
 		fatalError("Difficulty selection failed: %v", err)
 	}
 
-	fmt.Fprintln(os.Stderr, c(colorDim, "Fetching calculations..."))
+	fmt.Fprintln(os.Stderr, cErr(colorDim, "Fetching calculations..."))
 	blData, err := getBeatLeaderStars(selectedDiff.Characteristic, selectedDiff.Value, latestVersion.DownloadURL)
 	if err != nil {
 		fatalError("Failed to query BeatLeader: %v", err)
@@ -271,7 +273,7 @@ func fetchJSON[T any](apiURL, notFoundMsg string) (T, error) {
 }
 
 func getBeatSaverMap(mapCode string) (*BeatSaverMap, error) {
-	fmt.Fprintln(os.Stderr, c(colorDim, "Fetching map details..."))
+	fmt.Fprintln(os.Stderr, cErr(colorDim, "Fetching map details..."))
 	apiURL := fmt.Sprintf("https://api.beatsaver.com/maps/id/%s", url.PathEscape(mapCode))
 	m, err := fetchJSON[BeatSaverMap](apiURL, fmt.Sprintf("'%s' not found", mapCode))
 	if err != nil {
@@ -281,7 +283,7 @@ func getBeatSaverMap(mapCode string) (*BeatSaverMap, error) {
 }
 
 func getBeatSaverMapByHash(hash string) (*BeatSaverMap, error) {
-	fmt.Fprintln(os.Stderr, c(colorDim, "Fetching map details..."))
+	fmt.Fprintln(os.Stderr, cErr(colorDim, "Fetching map details..."))
 	apiURL := fmt.Sprintf("https://api.beatsaver.com/maps/hash/%s", url.PathEscape(strings.ToLower(hash)))
 	m, err := fetchJSON[BeatSaverMap](apiURL, fmt.Sprintf("'%s' not found", hash))
 	if err != nil {
@@ -378,23 +380,23 @@ func resolveDifficulty(available []MapDifficulty, argDiff string) (*MapDifficult
 		return &available[0], nil
 	}
 
-	fmt.Printf("\n%s\n", c(colorBold, "Available Difficulties:"))
+	fmt.Printf("\n%s\n", cOut(colorBold, "Available Difficulties:"))
 	defaultIdx := 1
 	for i, opt := range available {
-		fmt.Printf("  %s %s - %s\n", c(colorDim, fmt.Sprintf("[%d]", i+1)), opt.Characteristic, opt.Difficulty)
+		fmt.Printf("  %s %s - %s\n", cOut(colorDim, fmt.Sprintf("[%d]", i+1)), opt.Characteristic, opt.Difficulty)
 		if opt.Characteristic == "Standard" && opt.Difficulty == "ExpertPlus" {
 			defaultIdx = i + 1
 		}
 	}
 
 	promptMsg := fmt.Sprintf("\nSelect difficulty index (1-%d) [default %d]: ", len(available), defaultIdx)
-	selection := readLine(c(colorBold, promptMsg))
+	selection := readLine(cOut(colorBold, promptMsg))
 
 	selectedIdx := defaultIdx
 	if selection != "" {
 		parsedIdx, err := strconv.Atoi(selection)
 		if err != nil || parsedIdx < 1 || parsedIdx > len(available) {
-			fmt.Fprintf(os.Stderr, "%s\n", c(colorYellow, "Warning: Invalid input. Using default."))
+			fmt.Fprintf(os.Stderr, "%s\n", cErr(colorYellow, "Warning: Invalid input. Using default."))
 		} else {
 			selectedIdx = parsedIdx
 		}
@@ -410,27 +412,36 @@ func printResults(m *BeatSaverMap, hash string, diff *MapDifficulty, blData map[
 
 	fmt.Println()
 	wMeta := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintf(wMeta, "%s\t%s\n", c(colorBold, "Map ID:"), m.ID)
-	_, _ = fmt.Fprintf(wMeta, "%s\t%s\n", c(colorBold, "Title:"), m.Name)
-	_, _ = fmt.Fprintf(wMeta, "%s\t%s\n", c(colorBold, "Artist:"), m.Metadata.SongAuthorName)
-	_, _ = fmt.Fprintf(wMeta, "%s\t%s\n", c(colorBold, "Mapper:"), m.Metadata.LevelAuthorName)
-	_, _ = fmt.Fprintf(wMeta, "%s\t%s\n", c(colorBold, "Hash:"), hash)
-	_, _ = fmt.Fprintf(wMeta, "%s\t%s - %s\n", c(colorBold, "Difficulty:"), diff.Characteristic, diff.Difficulty)
+	_, _ = fmt.Fprintf(wMeta, "%s\t%s\n", cOut(colorBold, "Map ID:"), m.ID)
+	_, _ = fmt.Fprintf(wMeta, "%s\t%s\n", cOut(colorBold, "Title:"), m.Name)
+	_, _ = fmt.Fprintf(wMeta, "%s\t%s\n", cOut(colorBold, "Artist:"), m.Metadata.SongAuthorName)
+	_, _ = fmt.Fprintf(wMeta, "%s\t%s\n", cOut(colorBold, "Mapper:"), m.Metadata.LevelAuthorName)
+	_, _ = fmt.Fprintf(wMeta, "%s\t%s\n", cOut(colorBold, "Hash:"), hash)
+	_, _ = fmt.Fprintf(wMeta, "%s\t%s - %s\n", cOut(colorBold, "Difficulty:"), diff.Characteristic, diff.Difficulty)
 	_ = wMeta.Flush()
 
 	fmt.Println()
 	wTable := tabwriter.NewWriter(os.Stdout, 0, 0, 4, ' ', 0)
 	_, _ = fmt.Fprintln(wTable, "MODIFIER\tSTARS\tACC\tPASS\tTECH\tPRED. ACC")
 
-	for _, mod := range []string{"none", "SFS", "FS", "SS"} {
+	printed := make(map[string]bool, len(blData))
+	knownOrder := []string{"none", "SFS", "FS", "SS"}
+	for _, mod := range knownOrder {
 		if data, exists := blData[mod]; exists {
 			printRow(wTable, mod, data)
-			delete(blData, mod)
+			printed[mod] = true
 		}
 	}
 
-	for mod, data := range blData {
-		printRow(wTable, mod, data)
+	remaining := make([]string, 0, len(blData))
+	for mod := range blData {
+		if !printed[mod] {
+			remaining = append(remaining, mod)
+		}
+	}
+	sort.Strings(remaining)
+	for _, mod := range remaining {
+		printRow(wTable, mod, blData[mod])
 	}
 
 	_ = wTable.Flush()
@@ -539,8 +550,16 @@ func fmtFloat(val *float64, decimals int, suffix string) string {
 	return fmt.Sprintf("%.*f%s", decimals, *val, suffix)
 }
 
-func c(code, text string) string {
-	if !useColor {
+func cOut(code, text string) string {
+	return colorize(useColorStdout, code, text)
+}
+
+func cErr(code, text string) string {
+	return colorize(useColorStderr, code, text)
+}
+
+func colorize(enabled bool, code, text string) string {
+	if !enabled {
 		return text
 	}
 	return code + text + colorReset
@@ -548,6 +567,6 @@ func c(code, text string) string {
 
 func fatalError(format string, a ...interface{}) {
 	msg := fmt.Sprintf(format, a...)
-	fmt.Fprintf(os.Stderr, "%s\n", c(colorRed, "Error: "+msg))
+	fmt.Fprintf(os.Stderr, "%s\n", cErr(colorRed, "Error: "+msg))
 	os.Exit(1)
 }
