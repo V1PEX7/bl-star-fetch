@@ -13,6 +13,7 @@ import (
 	"strings"
 	"text/tabwriter"
 	"time"
+	"path/filepath"
 
 	"golang.org/x/term"
 )
@@ -95,14 +96,50 @@ func init() {
 	if os.Getenv("NO_COLOR") != "" || !term.IsTerminal(int(os.Stdout.Fd())) {
 		useColor = false
 	}
+	flag.Usage = printUsage
+}
+
+func printUsage() {
+	binName := filepath.Base(os.Args[0])
+
+	fmt.Fprintf(os.Stderr, "%sBeatLeader Calculation Tool%s\n", c(colorBold, ""), c(colorReset, ""))
+	fmt.Fprintf(os.Stderr, "Fetches star ratings, accuracy ratings, and modifier calculations for Beat Saber maps.\n\n")
+	fmt.Fprintf(os.Stderr, "%sUSAGE:%s\n", c(colorBold, ""), c(colorReset, ""))
+	fmt.Fprintf(os.Stderr, "  %s [flags] [map ID or URL]\n\n", binName)
+	fmt.Fprintf(os.Stderr, "%sFLAGS:%s\n", c(colorBold, ""), c(colorReset, ""))
+	flag.PrintDefaults()
+	fmt.Fprintf(os.Stderr, "\n%sSUPPORTED INPUTS:%s\n", c(colorBold, ""), c(colorReset, ""))
+	fmt.Fprintln(os.Stderr, "  • BeatSaver ID     (e.g. 52eb5 or !bsr 52eb5)")
+	fmt.Fprintln(os.Stderr, "  • BeatSaver URL    (e.g. https://beatsaver.com/maps/52eb5)")
+	fmt.Fprintln(os.Stderr, "  • BeatLeader URL   (e.g. https://beatleader.com/leaderboard/global/12345)")
+	fmt.Fprintln(os.Stderr, "  • ScoreSaber URL   (e.g. https://scoresaber.com/map/12345)")
+	fmt.Fprintln(os.Stderr, "  • 40-character Map Hash")
+	fmt.Fprintf(os.Stderr, "\n%sDIFFICULTY SHORTHANDS (-d, -diff):%s\n", c(colorBold, ""), c(colorReset, ""))
+	fmt.Fprintln(os.Stderr, "  • ExpertPlus : e+, ex+, expertplus")
+	fmt.Fprintln(os.Stderr, "  • Expert     : e, expert")
+	fmt.Fprintln(os.Stderr, "  • Hard       : h, hard")
+	fmt.Fprintln(os.Stderr, "  • Normal     : n, normal")
+	fmt.Fprintln(os.Stderr, "  • Easy       : es, easy")
+	fmt.Fprintf(os.Stderr, "\n%sEXAMPLES:%s\n", c(colorBold, ""), c(colorReset, ""))
+	fmt.Fprintf(os.Stderr, "  %s -i 52eb5 -d e+\n", binName)
+	fmt.Fprintf(os.Stderr, "  %s -id 52eb5 -diff expert\n", binName)
+	fmt.Fprintf(os.Stderr, "  %s 52eb5\n", binName)
+	fmt.Fprintf(os.Stderr, "  %s https://beatleader.com/leaderboard/global/12345\n\n", binName)
 }
 
 func main() {
-	mapCodePtr := flag.String("id", "", "Enter map ID or link:")
-	diffPtr := flag.String("diff", "", "Difficulty shorthand")
+	var mapCode, diffCode string
+
+	flag.StringVar(&mapCode, "id", "", "BeatSaver ID, hash, or map/leaderboard URL")
+	flag.StringVar(&mapCode, "i", "", "Alias for -id")
+	flag.StringVar(&diffCode, "diff", "", "Difficulty shorthand (e.g. e+, e, h, n, easy)")
+	flag.StringVar(&diffCode, "d", "", "Alias for -diff")
 	flag.Parse()
 
-	rawInput := strings.TrimSpace(*mapCodePtr)
+	rawInput := strings.TrimSpace(mapCode)
+	if rawInput == "" && flag.NArg() > 0 {
+		rawInput = flag.Arg(0)
+	}
 	if rawInput == "" {
 		rawInput = readLine("Enter BeatSaver code, !bsr code, or BeatSaver/BeatLeader/ScoreSaber link: ")
 	}
@@ -146,7 +183,7 @@ func main() {
 		fatalError("No difficulties found for this map.")
 	}
 
-	selectedDiff, err := resolveDifficulty(availableDiffs, *diffPtr)
+	selectedDiff, err := resolveDifficulty(availableDiffs, diffCode)
 	if err != nil {
 		fatalError("Difficulty selection failed: %v", err)
 	}
@@ -335,6 +372,10 @@ func resolveDifficulty(available []MapDifficulty, argDiff string) (*MapDifficult
 			}
 		}
 		return &matched[0], nil
+	}
+
+	if len(available) == 1 {
+		return &available[0], nil
 	}
 
 	fmt.Printf("\n%s\n", c(colorBold, "Available Difficulties:"))
