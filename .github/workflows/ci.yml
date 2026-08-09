@@ -46,9 +46,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        # Cross-compile for Linux, Windows, and macOS (darwin)
-        goos: [linux, windows, darwin]
-        # Build for both standard Intel/AMD (amd64) and Apple Silicon/ARM (arm64)
+        goos: [linux, windows, darwin, freebsd, openbsd]
         goarch: [amd64, arm64]
 
     steps:
