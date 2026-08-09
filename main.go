@@ -9,11 +9,11 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"text/tabwriter"
 	"time"
-	"path/filepath"
 
 	"golang.org/x/term"
 )
