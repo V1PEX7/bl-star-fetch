@@ -163,7 +163,7 @@ func main() {
 			fatalError("Failed to resolve BeatLeader leaderboard: %v", resolveErr)
 		}
 		fmt.Fprintln(os.Stderr, cErr(colorDim, "Fetching map details..."))
-		mapInfo, err = getBeatSaverMapByHash(hash)
+		mapInfo, err = getBeatSaverMap("hash", hash)
 	case kindScoreSaberID:
 		fmt.Fprintln(os.Stderr, cErr(colorDim, "Resolving ScoreSaber map..."))
 		hash, resolveErr := getScoreSaberHash(value)
@@ -171,13 +171,13 @@ func main() {
 			fatalError("Failed to resolve ScoreSaber map: %v", resolveErr)
 		}
 		fmt.Fprintln(os.Stderr, cErr(colorDim, "Fetching map details..."))
-		mapInfo, err = getBeatSaverMapByHash(hash)
+		mapInfo, err = getBeatSaverMap("hash", hash)
 	case kindHash:
 		fmt.Fprintln(os.Stderr, cErr(colorDim, "Fetching map details..."))
-		mapInfo, err = getBeatSaverMapByHash(value)
+		mapInfo, err = getBeatSaverMap("hash", value)
 	default:
 		fmt.Fprintln(os.Stderr, cErr(colorDim, "Fetching map details..."))
-		mapInfo, err = getBeatSaverMap(value)
+		mapInfo, err = getBeatSaverMap("id", value)
 	}
 	if err != nil {
 		fatalError("Failed to query BeatSaver: %v", err)
@@ -280,18 +280,14 @@ func fetchJSON[T any](apiURL, notFoundMsg string) (T, error) {
 	return data, nil
 }
 
-func getBeatSaverMap(mapCode string) (*BeatSaverMap, error) {
-	apiURL := fmt.Sprintf("https://api.beatsaver.com/maps/id/%s", url.PathEscape(mapCode))
-	m, err := fetchJSON[BeatSaverMap](apiURL, fmt.Sprintf("'%s' not found", mapCode))
-	if err != nil {
-		return nil, err
+func getBeatSaverMap(route, value string) (*BeatSaverMap, error) {
+	lookup := value
+	if route == "hash" {
+		lookup = strings.ToLower(value)
 	}
-	return &m, nil
-}
 
-func getBeatSaverMapByHash(hash string) (*BeatSaverMap, error) {
-	apiURL := fmt.Sprintf("https://api.beatsaver.com/maps/hash/%s", url.PathEscape(strings.ToLower(hash)))
-	m, err := fetchJSON[BeatSaverMap](apiURL, fmt.Sprintf("'%s' not found", hash))
+	apiURL := fmt.Sprintf("https://api.beatsaver.com/maps/%s/%s", route, url.PathEscape(lookup))
+	m, err := fetchJSON[BeatSaverMap](apiURL, fmt.Sprintf("'%s' not found", value))
 	if err != nil {
 		return nil, err
 	}
