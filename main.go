@@ -419,18 +419,16 @@ func printResults(m *BeatSaverMap, hash string, diff *MapDifficulty, blData map[
 	wTable := tabwriter.NewWriter(os.Stdout, 0, 0, 4, ' ', 0)
 	_, _ = fmt.Fprintln(wTable, "MODIFIER\tSTARS\tACC\tPASS\tTECH\tPRED. ACC")
 
-	printed := make(map[string]bool, len(blData))
 	knownOrder := []string{"none", "SFS", "FS", "SS"}
 	for _, mod := range knownOrder {
 		if data, exists := blData[mod]; exists {
 			printRow(wTable, mod, data)
-			printed[mod] = true
 		}
 	}
 
 	remaining := make([]string, 0, len(blData))
 	for mod := range blData {
-		if !printed[mod] {
+		if !slices.Contains(knownOrder, mod) {
 			remaining = append(remaining, mod)
 		}
 	}
