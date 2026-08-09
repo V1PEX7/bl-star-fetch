@@ -466,6 +466,7 @@ func readLine(prompt string) string {
 
 	line, err := term.NewTerminal(rw, prompt).ReadLine()
 	if err != nil {
+		term.Restore(fd, oldState)
 		if err == io.EOF {
 			fmt.Println()
 			os.Exit(0)
