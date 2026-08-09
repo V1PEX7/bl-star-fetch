@@ -1,4 +1,4 @@
-# bl-starfetch
+# bl-star-fetch
 
 A command-line tool to look up BeatLeader star ratings, modifier calculations, and predicted accuracy for Beat Saber maps (including unranked maps).
 
