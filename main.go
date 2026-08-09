@@ -102,25 +102,25 @@ func init() {
 func printUsage() {
 	binName := filepath.Base(os.Args[0])
 
-	fmt.Fprintf(os.Stderr, "%sBeatLeader Calculation Tool%s\n", c(colorBold, ""), c(colorReset, ""))
+	fmt.Fprintf(os.Stderr, "%s\n", c(colorBold, "BeatLeader Calculation Tool"))
 	fmt.Fprintf(os.Stderr, "Fetches star ratings, accuracy ratings, and modifier calculations for Beat Saber maps.\n\n")
-	fmt.Fprintf(os.Stderr, "%sUSAGE:%s\n", c(colorBold, ""), c(colorReset, ""))
+	fmt.Fprintf(os.Stderr, "%s\n", c(colorBold, "USAGE:"))
 	fmt.Fprintf(os.Stderr, "  %s [flags] [map ID or URL]\n\n", binName)
-	fmt.Fprintf(os.Stderr, "%sFLAGS:%s\n", c(colorBold, ""), c(colorReset, ""))
+	fmt.Fprintf(os.Stderr, "%s\n", c(colorBold, "FLAGS:"))
 	flag.PrintDefaults()
-	fmt.Fprintf(os.Stderr, "\n%sSUPPORTED INPUTS:%s\n", c(colorBold, ""), c(colorReset, ""))
+	fmt.Fprintf(os.Stderr, "\n%s\n", c(colorBold, "SUPPORTED INPUTS:"))
 	fmt.Fprintln(os.Stderr, "  • BeatSaver ID     (e.g. 52eb5 or !bsr 52eb5)")
 	fmt.Fprintln(os.Stderr, "  • BeatSaver URL    (e.g. https://beatsaver.com/maps/52eb5)")
 	fmt.Fprintln(os.Stderr, "  • BeatLeader URL   (e.g. https://beatleader.com/leaderboard/global/12345)")
 	fmt.Fprintln(os.Stderr, "  • ScoreSaber URL   (e.g. https://scoresaber.com/map/12345)")
 	fmt.Fprintln(os.Stderr, "  • 40-character Map Hash")
-	fmt.Fprintf(os.Stderr, "\n%sDIFFICULTY SHORTHANDS (-d, -diff):%s\n", c(colorBold, ""), c(colorReset, ""))
+	fmt.Fprintf(os.Stderr, "\n%s\n", c(colorBold, "DIFFICULTY SHORTHANDS (-d, -diff):"))
 	fmt.Fprintln(os.Stderr, "  • ExpertPlus : e+, ex+, expertplus")
 	fmt.Fprintln(os.Stderr, "  • Expert     : e, expert")
 	fmt.Fprintln(os.Stderr, "  • Hard       : h, hard")
 	fmt.Fprintln(os.Stderr, "  • Normal     : n, normal")
 	fmt.Fprintln(os.Stderr, "  • Easy       : es, easy")
-	fmt.Fprintf(os.Stderr, "\n%sEXAMPLES:%s\n", c(colorBold, ""), c(colorReset, ""))
+	fmt.Fprintf(os.Stderr, "\n%s\n", c(colorBold, "EXAMPLES:"))
 	fmt.Fprintf(os.Stderr, "  %s -i 52eb5 -d e+\n", binName)
 	fmt.Fprintf(os.Stderr, "  %s -id 52eb5 -diff expert\n", binName)
 	fmt.Fprintf(os.Stderr, "  %s 52eb5\n", binName)
@@ -381,7 +381,7 @@ func resolveDifficulty(available []MapDifficulty, argDiff string) (*MapDifficult
 	fmt.Printf("\n%s\n", c(colorBold, "Available Difficulties:"))
 	defaultIdx := 1
 	for i, opt := range available {
-		fmt.Printf("  %s[%d]%s %s - %s\n", colorDim, i+1, colorReset, opt.Characteristic, opt.Difficulty)
+		fmt.Printf("  %s %s - %s\n", c(colorDim, fmt.Sprintf("[%d]", i+1)), opt.Characteristic, opt.Difficulty)
 		if opt.Characteristic == "Standard" && opt.Difficulty == "ExpertPlus" {
 			defaultIdx = i + 1
 		}
