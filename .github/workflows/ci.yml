@@ -3,8 +3,18 @@ name: CI / Build
 on:
   push:
     branches: ["main", "master"]
+    paths:
+      - "**.go"
+      - "go.mod"
+      - "go.sum"
+      - ".github/workflows/ci.yml"
   pull_request:
     branches: ["main", "master"]
+    paths:
+      - "**.go"
+      - "go.mod"
+      - "go.sum"
+      - ".github/workflows/ci.yml"
 
 jobs:
   # 1. Lint, Vet, and Test Job
