@@ -3,7 +3,7 @@ name: Automated Release
 on:
   push:
     tags:
-      - "v*.*.*"
+      - "v*" # Matches v1.0.0, v1.0.0-rc1, v2.0, etc.
 
 permissions:
   contents: write
@@ -20,12 +20,13 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
-          go-version: "1.22"
+          go-version-file: "go.mod"
+          check-latest: true
           cache: true
 
       - name: Build Binary
@@ -39,7 +40,6 @@ jobs:
             BINARY_NAME="${BINARY_NAME}.exe"
           fi
 
-          # Compile stripped, lightweight static binary
           go build -ldflags="-s -w" -o "$BINARY_NAME" .
 
       - name: Upload Binary as Artifact
@@ -54,9 +54,6 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
       - name: Download All Binaries
         uses: actions/download-artifact@v4
         with:
