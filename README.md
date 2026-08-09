@@ -14,7 +14,7 @@ I built this project to:
 
 ### External API Usage
 
-This tool does not calculate star ratings locally. It makes HTTP requests to:
+This tool makes HTTP requests to:
 
 - **BeatSaver API** (`api.beatsaver.com`) to fetch map metadata and zip files.
 - **BeatLeader API** (`api.beatleader.com` & `stage.api.beatleader.net`) to resolve leaderboard links and compute modifier star ratings.
@@ -24,8 +24,7 @@ This tool does not calculate star ratings locally. It makes HTTP requests to:
 
 - Calculates star ratings, pass/tech difficulty, and predicted accuracy for standard speed modifiers (`SFS`, `FS`, `SS`).
 - Accepts BeatSaver codes (`49124`), `!bsr` strings, map hashes, or direct links (BeatSaver, BeatLeader, ScoreSaber).
-- Supports difficulty selection via flags (`-diff e+`) or an interactive prompt.
-- Single binary with zero external dependencies.
+- Supports difficulty selection via flags (`-diff e`, `-d e+`) or an interactive prompt.
 
 ## Installation
 
@@ -35,7 +34,7 @@ Or build from source (requires Go 1.22+):
 
 ```bash
 git clone https://github.com/V1PEX7/bl-star-fetch.git
-cd bl-starfetch
+cd bl-star-fetch
 go build -o bl-star-fetch .
 ```
 
@@ -53,6 +52,8 @@ Specify a difficulty shorthand to skip the prompt:
 
 ```bash
 ./bl-star-fetch -id 49124 -diff e+
+# OR
+./bl-star-fetch -i 49124 -d e+
 ```
 
 ## Example Output
