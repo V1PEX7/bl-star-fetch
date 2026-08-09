@@ -150,37 +150,9 @@ func main() {
 		rawInput = readLine("Enter BeatSaver code, !bsr code, or BeatSaver/BeatLeader/ScoreSaber link: ")
 	}
 
-	kind, value := extractMapCode(rawInput)
-
-	var mapInfo *beatSaverMap
-	var err error
-
-	switch kind {
-	case kindLeaderboardID:
-		fmt.Fprintln(os.Stderr, cErr(colorDim, "Resolving BeatLeader leaderboard..."))
-		hash, resolveErr := getBeatLeaderLeaderboardHash(value)
-		if resolveErr != nil {
-			fatalError("Failed to resolve BeatLeader leaderboard: %v", resolveErr)
-		}
-		fmt.Fprintln(os.Stderr, cErr(colorDim, "Fetching map details..."))
-		mapInfo, err = getBeatSaverMap("hash", hash)
-	case kindScoreSaberID:
-		fmt.Fprintln(os.Stderr, cErr(colorDim, "Resolving ScoreSaber map..."))
-		hash, resolveErr := getScoreSaberHash(value)
-		if resolveErr != nil {
-			fatalError("Failed to resolve ScoreSaber map: %v", resolveErr)
-		}
-		fmt.Fprintln(os.Stderr, cErr(colorDim, "Fetching map details..."))
-		mapInfo, err = getBeatSaverMap("hash", hash)
-	case kindHash:
-		fmt.Fprintln(os.Stderr, cErr(colorDim, "Fetching map details..."))
-		mapInfo, err = getBeatSaverMap("hash", value)
-	default:
-		fmt.Fprintln(os.Stderr, cErr(colorDim, "Fetching map details..."))
-		mapInfo, err = getBeatSaverMap("id", value)
-	}
+	mapInfo, err := fetchMap(extractMapCode(rawInput))
 	if err != nil {
-		fatalError("Failed to query BeatSaver: %v", err)
+		fatalError("%v", err)
 	}
 
 	if len(mapInfo.Versions) == 0 || mapInfo.Versions[0].DownloadURL == "" {
@@ -205,6 +177,36 @@ func main() {
 	}
 
 	printResults(mapInfo, latestVersion.Hash, selectedDiff, blData)
+}
+
+func fetchMap(kind inputKind, value string) (*beatSaverMap, error) {
+	route, lookup := "id", value
+
+	switch kind {
+	case kindLeaderboardID:
+		fmt.Fprintln(os.Stderr, cErr(colorDim, "Resolving BeatLeader leaderboard..."))
+		hash, err := getBeatLeaderLeaderboardHash(value)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to resolve BeatLeader leaderboard: %w", err)
+		}
+		route, lookup = "hash", hash
+	case kindScoreSaberID:
+		fmt.Fprintln(os.Stderr, cErr(colorDim, "Resolving ScoreSaber map..."))
+		hash, err := getScoreSaberHash(value)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to resolve ScoreSaber map: %w", err)
+		}
+		route, lookup = "hash", hash
+	case kindHash:
+		route = "hash"
+	}
+
+	fmt.Fprintln(os.Stderr, cErr(colorDim, "Fetching map details..."))
+	m, err := getBeatSaverMap(route, lookup)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to query BeatSaver: %w", err)
+	}
+	return m, nil
 }
 
 func extractMapCode(input string) (kind inputKind, value string) {
