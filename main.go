@@ -187,14 +187,14 @@ func fetchMap(kind inputKind, value string) (*beatSaverMap, error) {
 		fmt.Fprintln(os.Stderr, cErr(colorDim, "Resolving BeatLeader leaderboard..."))
 		hash, err := getBeatLeaderLeaderboardHash(value)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to resolve BeatLeader leaderboard: %w", err)
+			return nil, fmt.Errorf("failed to resolve BeatLeader leaderboard: %w", err)
 		}
 		route, lookup = "hash", hash
 	case kindScoreSaberID:
 		fmt.Fprintln(os.Stderr, cErr(colorDim, "Resolving ScoreSaber map..."))
 		hash, err := getScoreSaberHash(value)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to resolve ScoreSaber map: %w", err)
+			return nil, fmt.Errorf("failed to resolve ScoreSaber map: %w", err)
 		}
 		route, lookup = "hash", hash
 	case kindHash:
@@ -204,7 +204,7 @@ func fetchMap(kind inputKind, value string) (*beatSaverMap, error) {
 	fmt.Fprintln(os.Stderr, cErr(colorDim, "Fetching map details..."))
 	m, err := getBeatSaverMap(route, lookup)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to query BeatSaver: %w", err)
+		return nil, fmt.Errorf("failed to query BeatSaver: %w", err)
 	}
 	return m, nil
 }
