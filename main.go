@@ -271,7 +271,7 @@ func fetchJSON[T any](apiURL, notFoundMsg string) (T, error) {
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode == http.StatusNotFound && notFoundMsg != "" {
+	if resp.StatusCode == http.StatusNotFound {
 		return zero, errors.New(notFoundMsg)
 	}
 	if resp.StatusCode != http.StatusOK {
@@ -347,7 +347,8 @@ func getBeatLeaderStars(characteristic string, diffVal int, zipURL string) (map[
 	q.Set("link", zipURL)
 	reqURL.RawQuery = q.Encode()
 
-	return fetchJSON[map[string]modifierData](reqURL.String(), "")
+	notFound := fmt.Sprintf("no calculation available for %s difficulty %d", characteristic, diffVal)
+	return fetchJSON[map[string]modifierData](reqURL.String(), notFound)
 }
 
 func resolveDifficulty(available []mapDifficulty, argDiff string) (*mapDifficulty, error) {
