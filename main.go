@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -54,13 +55,15 @@ type BeatSaverMap struct {
 	Versions []MapVersion `json:"versions"`
 }
 
+type MapDiff struct {
+	Characteristic string `json:"characteristic"`
+	Difficulty     string `json:"difficulty"`
+}
+
 type MapVersion struct {
-	Hash        string `json:"hash"`
-	DownloadURL string `json:"downloadURL"`
-	Diffs       []struct {
-		Characteristic string `json:"characteristic"`
-		Difficulty     string `json:"difficulty"`
-	} `json:"diffs"`
+	Hash        string    `json:"hash"`
+	DownloadURL string    `json:"downloadURL"`
+	Diffs       []MapDiff `json:"diffs"`
 }
 
 type ModifierData struct {
@@ -105,7 +108,8 @@ func printUsage() {
 	binName := filepath.Base(os.Args[0])
 
 	fmt.Fprintf(os.Stderr, "%s\n", cErr(colorBold, "BeatLeader Calculation Tool"))
-	fmt.Fprintf(os.Stderr, "Fetches star ratings, accuracy ratings, and modifier calculations for Beat Saber maps.\n\n")
+	fmt.Fprintln(os.Stderr, "Fetches star ratings, accuracy ratings, and modifier calculations for Beat Saber maps.")
+	fmt.Fprintln(os.Stderr)
 	fmt.Fprintf(os.Stderr, "%s\n", cErr(colorBold, "USAGE:"))
 	fmt.Fprintf(os.Stderr, "  %s [flags] [map ID or URL]\n\n", binName)
 	fmt.Fprintf(os.Stderr, "%s\n", cErr(colorBold, "FLAGS:"))
@@ -158,6 +162,7 @@ func main() {
 		if resolveErr != nil {
 			fatalError("Failed to resolve BeatLeader leaderboard: %v", resolveErr)
 		}
+		fmt.Fprintln(os.Stderr, cErr(colorDim, "Fetching map details..."))
 		mapInfo, err = getBeatSaverMapByHash(hash)
 	case kindScoreSaberID:
 		fmt.Fprintln(os.Stderr, cErr(colorDim, "Resolving ScoreSaber map..."))
@@ -165,10 +170,13 @@ func main() {
 		if resolveErr != nil {
 			fatalError("Failed to resolve ScoreSaber map: %v", resolveErr)
 		}
+		fmt.Fprintln(os.Stderr, cErr(colorDim, "Fetching map details..."))
 		mapInfo, err = getBeatSaverMapByHash(hash)
 	case kindHash:
+		fmt.Fprintln(os.Stderr, cErr(colorDim, "Fetching map details..."))
 		mapInfo, err = getBeatSaverMapByHash(value)
 	default:
+		fmt.Fprintln(os.Stderr, cErr(colorDim, "Fetching map details..."))
 		mapInfo, err = getBeatSaverMap(value)
 	}
 	if err != nil {
@@ -273,7 +281,6 @@ func fetchJSON[T any](apiURL, notFoundMsg string) (T, error) {
 }
 
 func getBeatSaverMap(mapCode string) (*BeatSaverMap, error) {
-	fmt.Fprintln(os.Stderr, cErr(colorDim, "Fetching map details..."))
 	apiURL := fmt.Sprintf("https://api.beatsaver.com/maps/id/%s", url.PathEscape(mapCode))
 	m, err := fetchJSON[BeatSaverMap](apiURL, fmt.Sprintf("'%s' not found", mapCode))
 	if err != nil {
@@ -283,7 +290,6 @@ func getBeatSaverMap(mapCode string) (*BeatSaverMap, error) {
 }
 
 func getBeatSaverMapByHash(hash string) (*BeatSaverMap, error) {
-	fmt.Fprintln(os.Stderr, cErr(colorDim, "Fetching map details..."))
 	apiURL := fmt.Sprintf("https://api.beatsaver.com/maps/hash/%s", url.PathEscape(strings.ToLower(hash)))
 	m, err := fetchJSON[BeatSaverMap](apiURL, fmt.Sprintf("'%s' not found", hash))
 	if err != nil {
@@ -298,6 +304,13 @@ type beatLeaderLeaderboardResponse struct {
 	} `json:"Song"`
 }
 
+func (r beatLeaderLeaderboardResponse) hash() string {
+	if looksLikeHash(r.Song.Hash) {
+		return r.Song.Hash
+	}
+	return ""
+}
+
 func getBeatLeaderLeaderboardHash(leaderboardID string) (string, error) {
 	apiURL := fmt.Sprintf("https://api.beatleader.com/leaderboard/%s", url.PathEscape(leaderboardID))
 
@@ -305,10 +318,11 @@ func getBeatLeaderLeaderboardHash(leaderboardID string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if !looksLikeHash(resp.Song.Hash) {
-		return "", fmt.Errorf("no map hash found in leaderboard response")
+	hash := resp.hash()
+	if hash == "" {
+		return "", errors.New("no map hash found in leaderboard response")
 	}
-	return resp.Song.Hash, nil
+	return hash, nil
 }
 
 type scoreSaberMapResponse struct {
@@ -331,7 +345,7 @@ func getScoreSaberHash(id string) (string, error) {
 	}
 	hash := resp.hash()
 	if hash == "" {
-		return "", fmt.Errorf("no map hash found in ScoreSaber response")
+		return "", errors.New("no map hash found in ScoreSaber response")
 	}
 	return hash, nil
 }
@@ -380,17 +394,17 @@ func resolveDifficulty(available []MapDifficulty, argDiff string) (*MapDifficult
 		return &available[0], nil
 	}
 
-	fmt.Printf("\n%s\n", cOut(colorBold, "Available Difficulties:"))
+	fmt.Fprintf(os.Stderr, "\n%s\n", cErr(colorBold, "Available Difficulties:"))
 	defaultIdx := 1
 	for i, opt := range available {
-		fmt.Printf("  %s %s - %s\n", cOut(colorDim, fmt.Sprintf("[%d]", i+1)), opt.Characteristic, opt.Difficulty)
+		fmt.Fprintf(os.Stderr, "  %s %s - %s\n", cErr(colorDim, fmt.Sprintf("[%d]", i+1)), opt.Characteristic, opt.Difficulty)
 		if opt.Characteristic == "Standard" && opt.Difficulty == "ExpertPlus" {
 			defaultIdx = i + 1
 		}
 	}
 
 	promptMsg := fmt.Sprintf("\nSelect difficulty index (1-%d) [default %d]: ", len(available), defaultIdx)
-	selection := readLine(cOut(colorBold, promptMsg))
+	selection := readLine(cErr(colorBold, promptMsg))
 
 	selectedIdx := defaultIdx
 	if selection != "" {
@@ -514,12 +528,12 @@ func readLine(prompt string) string {
 	rw := struct {
 		io.Reader
 		io.Writer
-	}{os.Stdin, os.Stdout}
+	}{os.Stdin, os.Stderr}
 
 	line, err := term.NewTerminal(rw, prompt).ReadLine()
 	if err != nil {
 		_ = term.Restore(fd, oldState)
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			fmt.Println()
 			os.Exit(0)
 		}
@@ -529,12 +543,12 @@ func readLine(prompt string) string {
 }
 
 func fallbackReadLine(prompt string) string {
-	_, _ = fmt.Fprint(os.Stdout, prompt)
+	_, _ = fmt.Fprint(os.Stderr, prompt)
 
 	reader := bufio.NewReader(os.Stdin)
 	input, err := reader.ReadString('\n')
 	if err != nil {
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			fmt.Println()
 			os.Exit(0)
 		}
@@ -565,7 +579,7 @@ func colorize(enabled bool, code, text string) string {
 	return code + text + colorReset
 }
 
-func fatalError(format string, a ...interface{}) {
+func fatalError(format string, a ...any) {
 	msg := fmt.Sprintf(format, a...)
 	fmt.Fprintf(os.Stderr, "%s\n", cErr(colorRed, "Error: "+msg))
 	os.Exit(1)
