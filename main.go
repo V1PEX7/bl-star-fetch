@@ -147,7 +147,12 @@ func main() {
 		rawInput = flag.Arg(0)
 	}
 	if rawInput == "" {
-		rawInput = readLine("Enter BeatSaver code, !bsr code, or BeatSaver/BeatLeader/ScoreSaber link: ")
+		line, ok := readLine("Enter BeatSaver code, !bsr code, or BeatSaver/BeatLeader/ScoreSaber link: ")
+		if !ok {
+			fmt.Fprintln(os.Stderr)
+			os.Exit(0)
+		}
+		rawInput = line
 	}
 
 	mapInfo, err := fetchMap(extractMapCode(rawInput))
@@ -387,7 +392,10 @@ func resolveDifficulty(available []mapDifficulty, argDiff string) (*mapDifficult
 	}
 
 	promptMsg := fmt.Sprintf("\nSelect difficulty index (1-%d) [default %d]: ", len(available), defaultIdx)
-	selection := readLine(cErr(colorBold, promptMsg))
+	selection, ok := readLine(cErr(colorBold, promptMsg))
+	if !ok {
+		fmt.Fprintln(os.Stderr)
+	}
 
 	selectedIdx := defaultIdx
 	if selection != "" {
@@ -494,7 +502,7 @@ func parseAvailableDiffs(version mapVersion) []mapDifficulty {
 	return diffs
 }
 
-func readLine(prompt string) string {
+func readLine(prompt string) (line string, ok bool) {
 	fd := int(os.Stdin.Fd())
 	if !term.IsTerminal(fd) {
 		return fallbackReadLine(prompt)
@@ -511,31 +519,35 @@ func readLine(prompt string) string {
 		io.Writer
 	}{os.Stdin, os.Stderr}
 
-	line, err := term.NewTerminal(rw, prompt).ReadLine()
+	line, err = term.NewTerminal(rw, prompt).ReadLine()
 	if err != nil {
 		_ = term.Restore(fd, oldState)
 		if errors.Is(err, io.EOF) {
-			fmt.Println()
-			os.Exit(0)
+			return "", false
 		}
 		fatalError("Failed to read input: %v", err)
 	}
-	return strings.TrimSpace(line)
+	return strings.TrimSpace(line), true
 }
 
-func fallbackReadLine(prompt string) string {
+var stdinReader *bufio.Reader
+
+func fallbackReadLine(prompt string) (string, bool) {
 	_, _ = fmt.Fprint(os.Stderr, prompt)
 
-	reader := bufio.NewReader(os.Stdin)
-	input, err := reader.ReadString('\n')
-	if err != nil {
-		if errors.Is(err, io.EOF) {
-			fmt.Println()
-			os.Exit(0)
-		}
-		fatalError("Failed to read input: %v", err)
+	if stdinReader == nil {
+		stdinReader = bufio.NewReader(os.Stdin)
 	}
-	return strings.TrimSpace(input)
+	input, err := stdinReader.ReadString('\n')
+	if err != nil {
+		if !errors.Is(err, io.EOF) {
+			fatalError("Failed to read input: %v", err)
+		}
+		if input == "" {
+			return "", false
+		}
+	}
+	return strings.TrimSpace(input), true
 }
 
 func fmtFloat(val *float64, decimals int, suffix string) string {

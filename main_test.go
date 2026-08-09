@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -169,6 +170,80 @@ func TestResolveDifficulty(t *testing.T) {
 			t.Fatal("resolveDifficulty() expected error for unmapped difficulty, got nil")
 		}
 	})
+}
+
+func stubStdin(t *testing.T, content string) {
+	t.Helper()
+
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("failed to create stdin pipe: %v", err)
+	}
+	if _, err := io.WriteString(w, content); err != nil {
+		t.Fatalf("failed to write stub stdin: %v", err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatalf("failed to close stub stdin writer: %v", err)
+	}
+
+	original := os.Stdin
+	os.Stdin, stdinReader = r, nil
+	t.Cleanup(func() {
+		os.Stdin, stdinReader = original, nil
+		_ = r.Close()
+	})
+}
+
+func TestFallbackReadLineConsecutivePrompts(t *testing.T) {
+	stubStdin(t, "52eb5\n1\n")
+
+	for _, want := range []string{"52eb5", "1"} {
+		got, ok := fallbackReadLine("")
+		if !ok {
+			t.Fatalf("fallbackReadLine() ok = false, want the buffered line %q", want)
+		}
+		if got != want {
+			t.Errorf("fallbackReadLine() = %q, want %q", got, want)
+		}
+	}
+
+	if _, ok := fallbackReadLine(""); ok {
+		t.Error("fallbackReadLine() ok = true after input was exhausted, want false")
+	}
+}
+
+func TestResolveDifficultyPrompt(t *testing.T) {
+	available := []mapDifficulty{
+		{Characteristic: "Standard", Difficulty: "Easy", Value: 1},
+		{Characteristic: "Standard", Difficulty: "ExpertPlus", Value: 9},
+	}
+
+	tests := []struct {
+		name  string
+		stdin string
+		want  mapDifficulty
+	}{
+		{"Explicit selection", "1\n", available[0]},
+		{"Selection without trailing newline", "1", available[0]},
+		{"Empty line uses default", "\n", available[1]},
+		{"EOF uses default", "", available[1]},
+		{"Invalid input uses default", "banana\n", available[1]},
+		{"Out of range uses default", "99\n", available[1]},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stubStdin(t, tt.stdin)
+
+			got, err := resolveDifficulty(available, "")
+			if err != nil {
+				t.Fatalf("resolveDifficulty() unexpected error: %v", err)
+			}
+			if *got != tt.want {
+				t.Errorf("resolveDifficulty() = %+v, want %+v", *got, tt.want)
+			}
+		})
+	}
 }
 
 func TestParseAvailableDiffs(t *testing.T) {
