@@ -300,11 +300,11 @@ type beatLeaderLeaderboardResponse struct {
 	} `json:"Song"`
 }
 
-func (r beatLeaderLeaderboardResponse) hash() string {
-	if looksLikeHash(r.Song.Hash) {
-		return r.Song.Hash
+func validateHash(hash, source string) (string, error) {
+	if !looksLikeHash(hash) {
+		return "", fmt.Errorf("no map hash found in %s response", source)
 	}
-	return ""
+	return hash, nil
 }
 
 func getBeatLeaderLeaderboardHash(leaderboardID string) (string, error) {
@@ -314,22 +314,11 @@ func getBeatLeaderLeaderboardHash(leaderboardID string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	hash := resp.hash()
-	if hash == "" {
-		return "", errors.New("no map hash found in leaderboard response")
-	}
-	return hash, nil
+	return validateHash(resp.Song.Hash, "BeatLeader")
 }
 
 type scoreSaberMapResponse struct {
 	Hash string `json:"hash"`
-}
-
-func (r scoreSaberMapResponse) hash() string {
-	if looksLikeHash(r.Hash) {
-		return r.Hash
-	}
-	return ""
 }
 
 func getScoreSaberHash(id string) (string, error) {
@@ -339,11 +328,7 @@ func getScoreSaberHash(id string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	hash := resp.hash()
-	if hash == "" {
-		return "", errors.New("no map hash found in ScoreSaber response")
-	}
-	return hash, nil
+	return validateHash(resp.Hash, "ScoreSaber")
 }
 
 func getBeatLeaderStars(characteristic string, diffVal int, zipURL string) (map[string]ModifierData, error) {
