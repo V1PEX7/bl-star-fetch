@@ -240,7 +240,7 @@ func looksLikeHash(s string) bool {
 		return false
 	}
 	for _, r := range s {
-		if !((r >= '0' && r <= '9') || (r >= 'a' && r <= 'f') || (r >= 'A' && r <= 'F')) {
+		if (r < '0' || r > '9') && (r < 'a' || r > 'f') && (r < 'A' || r > 'F') {
 			return false
 		}
 	}
@@ -254,7 +254,7 @@ func fetchJSON[T any](apiURL, notFoundMsg string) (T, error) {
 	if err != nil {
 		return zero, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == http.StatusNotFound && notFoundMsg != "" {
 		return zero, fmt.Errorf("%s", notFoundMsg)
@@ -410,17 +410,17 @@ func printResults(m *BeatSaverMap, hash string, diff *MapDifficulty, blData map[
 
 	fmt.Println()
 	wMeta := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(wMeta, "%s\t%s\n", c(colorBold, "Map ID:"), m.ID)
-	fmt.Fprintf(wMeta, "%s\t%s\n", c(colorBold, "Title:"), m.Name)
-	fmt.Fprintf(wMeta, "%s\t%s\n", c(colorBold, "Artist:"), m.Metadata.SongAuthorName)
-	fmt.Fprintf(wMeta, "%s\t%s\n", c(colorBold, "Mapper:"), m.Metadata.LevelAuthorName)
-	fmt.Fprintf(wMeta, "%s\t%s\n", c(colorBold, "Hash:"), hash)
-	fmt.Fprintf(wMeta, "%s\t%s - %s\n", c(colorBold, "Difficulty:"), diff.Characteristic, diff.Difficulty)
-	wMeta.Flush()
+	_, _ = fmt.Fprintf(wMeta, "%s\t%s\n", c(colorBold, "Map ID:"), m.ID)
+	_, _ = fmt.Fprintf(wMeta, "%s\t%s\n", c(colorBold, "Title:"), m.Name)
+	_, _ = fmt.Fprintf(wMeta, "%s\t%s\n", c(colorBold, "Artist:"), m.Metadata.SongAuthorName)
+	_, _ = fmt.Fprintf(wMeta, "%s\t%s\n", c(colorBold, "Mapper:"), m.Metadata.LevelAuthorName)
+	_, _ = fmt.Fprintf(wMeta, "%s\t%s\n", c(colorBold, "Hash:"), hash)
+	_, _ = fmt.Fprintf(wMeta, "%s\t%s - %s\n", c(colorBold, "Difficulty:"), diff.Characteristic, diff.Difficulty)
+	_ = wMeta.Flush()
 
 	fmt.Println()
 	wTable := tabwriter.NewWriter(os.Stdout, 0, 0, 4, ' ', 0)
-	fmt.Fprintln(wTable, "MODIFIER\tSTARS\tACC\tPASS\tTECH\tPRED. ACC")
+	_, _ = fmt.Fprintln(wTable, "MODIFIER\tSTARS\tACC\tPASS\tTECH\tPRED. ACC")
 
 	for _, mod := range []string{"none", "SFS", "FS", "SS"} {
 		if data, exists := blData[mod]; exists {
@@ -433,7 +433,7 @@ func printResults(m *BeatSaverMap, hash string, diff *MapDifficulty, blData map[
 		printRow(wTable, mod, data)
 	}
 
-	wTable.Flush()
+	_ = wTable.Flush()
 	fmt.Println()
 }
 
@@ -452,7 +452,7 @@ func printRow(w *tabwriter.Writer, mod string, data ModifierData) {
 		predAccStr = fmtFloat(&scaledAcc, 2, "%")
 	}
 
-	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
+	_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
 		displayName,
 		fmtFloat(data.StarRating, 2, ""),
 		fmtFloat(data.AccRating, 2, ""),
@@ -498,7 +498,7 @@ func readLine(prompt string) string {
 	if err != nil {
 		return fallbackReadLine(prompt)
 	}
-	defer term.Restore(fd, oldState)
+	defer func() { _ = term.Restore(fd, oldState) }()
 
 	rw := struct {
 		io.Reader
@@ -507,7 +507,7 @@ func readLine(prompt string) string {
 
 	line, err := term.NewTerminal(rw, prompt).ReadLine()
 	if err != nil {
-		term.Restore(fd, oldState)
+		_ = term.Restore(fd, oldState)
 		if err == io.EOF {
 			fmt.Println()
 			os.Exit(0)
@@ -518,7 +518,7 @@ func readLine(prompt string) string {
 }
 
 func fallbackReadLine(prompt string) string {
-	fmt.Fprint(os.Stdout, prompt)
+	_, _ = fmt.Fprint(os.Stdout, prompt)
 
 	reader := bufio.NewReader(os.Stdin)
 	input, err := reader.ReadString('\n')
