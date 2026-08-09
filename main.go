@@ -11,7 +11,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"text/tabwriter"
@@ -33,8 +33,8 @@ var (
 		"easy": "Easy", "es": "Easy",
 	}
 
-	useColorStdout = true
-	useColorStderr = true
+	useColorStdout bool
+	useColorStderr bool
 )
 
 const (
@@ -267,7 +267,7 @@ func fetchJSON[T any](apiURL, notFoundMsg string) (T, error) {
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == http.StatusNotFound && notFoundMsg != "" {
-		return zero, fmt.Errorf("%s", notFoundMsg)
+		return zero, errors.New(notFoundMsg)
 	}
 	if resp.StatusCode != http.StatusOK {
 		return zero, fmt.Errorf("HTTP %d", resp.StatusCode)
@@ -434,7 +434,7 @@ func printResults(m *BeatSaverMap, hash string, diff *MapDifficulty, blData map[
 			remaining = append(remaining, mod)
 		}
 	}
-	sort.Strings(remaining)
+	slices.Sort(remaining)
 	for _, mod := range remaining {
 		printRow(wTable, mod, blData[mod])
 	}
