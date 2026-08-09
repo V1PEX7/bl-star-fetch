@@ -105,7 +105,7 @@ func TestFmtFloat(t *testing.T) {
 }
 
 func TestResolveDifficulty(t *testing.T) {
-	available := []MapDifficulty{
+	available := []mapDifficulty{
 		{Characteristic: "Standard", Difficulty: "Easy", Value: 1},
 		{Characteristic: "Standard", Difficulty: "ExpertPlus", Value: 9},
 		{Characteristic: "Lawless", Difficulty: "ExpertPlus", Value: 9},
@@ -137,8 +137,8 @@ func TestResolveDifficulty(t *testing.T) {
 }
 
 func TestParseAvailableDiffs(t *testing.T) {
-	version := MapVersion{
-		Diffs: []MapDiff{
+	version := mapVersion{
+		Diffs: []mapDiff{
 			{Characteristic: "Standard", Difficulty: "Hard"},
 			{Characteristic: "Standard", Difficulty: "Expert"},
 			{Characteristic: "Standard", Difficulty: "Hard"},         // Duplicate, should be ignored
@@ -148,7 +148,7 @@ func TestParseAvailableDiffs(t *testing.T) {
 
 	got := parseAvailableDiffs(version)
 
-	want := []MapDifficulty{
+	want := []mapDifficulty{
 		{Characteristic: "Standard", Difficulty: "Hard", Value: 5},
 		{Characteristic: "Standard", Difficulty: "Expert", Value: 7},
 	}

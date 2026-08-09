@@ -45,40 +45,40 @@ const (
 	colorYellow = "\033[33m"
 )
 
-type BeatSaverMap struct {
+type beatSaverMap struct {
 	ID       string `json:"id"`
 	Name     string `json:"name"`
 	Metadata struct {
 		SongAuthorName  string `json:"songAuthorName"`
 		LevelAuthorName string `json:"levelAuthorName"`
 	} `json:"metadata"`
-	Versions []MapVersion `json:"versions"`
+	Versions []mapVersion `json:"versions"`
 }
 
-type MapDiff struct {
+type mapDiff struct {
 	Characteristic string `json:"characteristic"`
 	Difficulty     string `json:"difficulty"`
 }
 
-type MapVersion struct {
+type mapVersion struct {
 	Hash        string    `json:"hash"`
 	DownloadURL string    `json:"downloadURL"`
-	Diffs       []MapDiff `json:"diffs"`
+	Diffs       []mapDiff `json:"diffs"`
 }
 
-type ModifierData struct {
+type modifierData struct {
 	StarRating         *float64         `json:"star_rating"`
 	AccRating          *float64         `json:"acc_rating"`
-	LackMapCalculation *LackCalculation `json:"lack_map_calculation"`
+	LackMapCalculation *lackCalculation `json:"lack_map_calculation"`
 	PredictedAcc       *float64         `json:"predicted_acc"`
 }
 
-type LackCalculation struct {
+type lackCalculation struct {
 	BalancedPassDiff *float64 `json:"balanced_pass_diff"`
 	BalancedTech     *float64 `json:"balanced_tech"`
 }
 
-type MapDifficulty struct {
+type mapDifficulty struct {
 	Characteristic string
 	Difficulty     string
 	Value          int
@@ -152,7 +152,7 @@ func main() {
 
 	kind, value := extractMapCode(rawInput)
 
-	var mapInfo *BeatSaverMap
+	var mapInfo *beatSaverMap
 	var err error
 
 	switch kind {
@@ -280,14 +280,14 @@ func fetchJSON[T any](apiURL, notFoundMsg string) (T, error) {
 	return data, nil
 }
 
-func getBeatSaverMap(route, value string) (*BeatSaverMap, error) {
+func getBeatSaverMap(route, value string) (*beatSaverMap, error) {
 	lookup := value
 	if route == "hash" {
 		lookup = strings.ToLower(value)
 	}
 
 	apiURL := fmt.Sprintf("https://api.beatsaver.com/maps/%s/%s", route, url.PathEscape(lookup))
-	m, err := fetchJSON[BeatSaverMap](apiURL, fmt.Sprintf("'%s' not found", value))
+	m, err := fetchJSON[beatSaverMap](apiURL, fmt.Sprintf("'%s' not found", value))
 	if err != nil {
 		return nil, err
 	}
@@ -331,7 +331,7 @@ func getScoreSaberHash(id string) (string, error) {
 	return validateHash(resp.Hash, "ScoreSaber")
 }
 
-func getBeatLeaderStars(characteristic string, diffVal int, zipURL string) (map[string]ModifierData, error) {
+func getBeatLeaderStars(characteristic string, diffVal int, zipURL string) (map[string]modifierData, error) {
 	apiURL := fmt.Sprintf("https://stage.api.beatleader.net/ppai2/link/%s/%d", url.PathEscape(characteristic), diffVal)
 
 	reqURL, err := url.Parse(apiURL)
@@ -342,17 +342,17 @@ func getBeatLeaderStars(characteristic string, diffVal int, zipURL string) (map[
 	q.Set("link", zipURL)
 	reqURL.RawQuery = q.Encode()
 
-	return fetchJSON[map[string]ModifierData](reqURL.String(), "")
+	return fetchJSON[map[string]modifierData](reqURL.String(), "")
 }
 
-func resolveDifficulty(available []MapDifficulty, argDiff string) (*MapDifficulty, error) {
+func resolveDifficulty(available []mapDifficulty, argDiff string) (*mapDifficulty, error) {
 	if argDiff != "" {
 		targetDiff := diffShorthands[strings.ToLower(strings.TrimSpace(argDiff))]
 		if targetDiff == "" {
 			return nil, fmt.Errorf("unknown difficulty shorthand: '%s'", argDiff)
 		}
 
-		var matched []MapDifficulty
+		var matched []mapDifficulty
 		for _, d := range available {
 			if d.Difficulty == targetDiff {
 				matched = append(matched, d)
@@ -400,7 +400,7 @@ func resolveDifficulty(available []MapDifficulty, argDiff string) (*MapDifficult
 	return &available[selectedIdx-1], nil
 }
 
-func printResults(m *BeatSaverMap, hash string, diff *MapDifficulty, blData map[string]ModifierData) {
+func printResults(m *beatSaverMap, hash string, diff *mapDifficulty, blData map[string]modifierData) {
 	if hash == "" {
 		hash = "N/A"
 	}
@@ -441,7 +441,7 @@ func printResults(m *BeatSaverMap, hash string, diff *MapDifficulty, blData map[
 	fmt.Println()
 }
 
-func printRow(w *tabwriter.Writer, mod string, data ModifierData) {
+func printRow(w *tabwriter.Writer, mod string, data modifierData) {
 	displayName := strings.ToUpper(mod)
 	var passVal, techVal *float64
 
@@ -466,8 +466,8 @@ func printRow(w *tabwriter.Writer, mod string, data ModifierData) {
 	)
 }
 
-func parseAvailableDiffs(version MapVersion) []MapDifficulty {
-	var diffs []MapDifficulty
+func parseAvailableDiffs(version mapVersion) []mapDifficulty {
+	var diffs []mapDifficulty
 	seen := make(map[string]bool)
 
 	for _, d := range version.Diffs {
@@ -481,7 +481,7 @@ func parseAvailableDiffs(version MapVersion) []MapDifficulty {
 			if !exists {
 				continue
 			}
-			diffs = append(diffs, MapDifficulty{
+			diffs = append(diffs, mapDifficulty{
 				Characteristic: d.Characteristic,
 				Difficulty:     d.Difficulty,
 				Value:          val,
